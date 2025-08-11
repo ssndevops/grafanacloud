@@ -1,0 +1,72 @@
+clusterMetrics:
+  enabled: false
+  kube-state-metrics:
+    enabled: true
+    deploy: false
+    podAnnotations:
+      {
+        kubernetes.azure.com/set-kube-service-host-fqdn: "true",
+        observability.volvocars.com: "true",
+      }
+    useDefaultAllowList: true
+    namespaces: ["obs-uj1-test502", "obs-uj1-test501", "obs-uj1-test503"]
+    metricsAllowlist:
+      - kube_pod_labels
+      - kube_pod_annotations
+      - kube_node_status_capacity
+
+    # Configures kube-state-metrics to capture Pod labels as kube_pod_labels metrics
+    metricLabelsAllowlist:
+      - pods=[app.kubernetes.io/name,app.kubernetes.io/instance,app.kubernetes.io/version,app.kubernetes.io/managed-by,app.kubernetes.io/component,app.kubernetes.io/part-of]
+
+    resources:
+      limits:
+        cpu: "2"
+        memory: "4Gi"
+      requests:
+        cpu: "1"
+        memory: "2Gi"
+
+  kubelet:
+    enabled: true
+    metricsTuning:
+      # Will only keep these two metrics
+      useDefaultAllowList: true
+      includeMetrics:
+        - kubelet_node_name
+        - kubernetes_build_info
+
+  cadvisor:
+    enabled: true
+    metricsTuning:
+      # Will keep the default set of metrics and also include these three more
+      useDefaultAllowList: true
+      includeMetrics:
+        - container_memory_cache
+        - container_memory_rss
+        - container_memory_swap
+
+  node-exporter:
+    deploy: false # set to false if we already have node-exporter
+    enabled: true
+    metricsTuning:
+      # Will filter to the metrics that will populate the Linux node integration
+      # See https://grafana.com/docs/grafana-cloud/monitor-infrastructure/integrations/integration-reference/integration-linux-node/
+      useIntegrationAllowList: false
+      useDefaultAllowList: true
+      metricsAllowlist:
+        - node_cpu_seconds_total
+        - node_memory_MemAvailable_bytes
+        - node_network_receive_bytes_total
+        - node_network_transmit_bytes_total
+        - node_network_receive_drop_total
+        - node_network_transmit_drop_total
+
+  opencost:
+    enabled: false
+
+  kepler:
+    enabled: false
+
+  windows-exporter:
+    deploy: false
