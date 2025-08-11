@@ -1,0 +1,17 @@
+configMapGenerator:
+  - name: grafana-k8s-monitoring-common-values
+    files:
+      - values-common.yaml=./files/common-values.yaml
+      - feature-cluster-metrics.yaml=./files/feature-cluster-metrics.yaml
+      - feature-pod-logs.yaml=./files/feature-pod-logs.yaml
+      - feature-application-observability.yaml=./files/feature-application-observability.yaml
+    namespace: cluster-core
+    options:
+      disableNameSuffixHash: true
+
+
+configurations:
+  - config.yaml
+
+resources:
+  - k8s-monitoring.yaml
