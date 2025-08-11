@@ -1,0 +1,16 @@
+configMapGenerator:
+  - name: grafana-k8s-monitoring-custom-values
+    files:
+      - values-custom.yaml=./grafana-k8s-monitoring-custom-values.yaml
+      - values-alloy-logs-extra-config.yaml=../base/grafana-k8s-monitoring-alloy-logs-extra-config.yaml
+    namespace: cluster-core
+    options:
+      disableNameSuffixHash: true
+ 
+
+resources:
+  - elastic-cluster.yaml
+  - es-general-kustomize-vars.yaml
+  - fluentbit.yaml
+  - secretcopy.yaml
+  - elastic-incluster-extras.yaml
