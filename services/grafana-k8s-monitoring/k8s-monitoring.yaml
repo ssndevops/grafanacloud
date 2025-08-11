@@ -1,0 +1,46 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: grafana-k8s-monitoring
+  namespace: cluster-core
+spec:
+  targetNamespace: observability
+  interval: 10m
+  upgrade:
+    timeout: 10m
+    remediation:
+      retries: -1
+  install:
+    timeout: 10m
+    remediation:
+      retries: -1
+  chart:
+    spec:
+      chart: k8s-monitoring
+      version: 3.2.0
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+        namespace: cluster-core
+
+  valuesFrom:
+    - kind: ConfigMap
+      name: grafana-k8s-monitoring-common-values
+      valuesKey: values-common.yaml
+    - kind: ConfigMap
+      name: grafana-k8s-monitoring-common-values
+      valuesKey: feature-pod-logs.yaml
+    - kind: ConfigMap
+      name: grafana-k8s-monitoring-common-values
+      valuesKey: feature-cluster-metrics.yaml
+    - kind: ConfigMap
+      name: grafana-k8s-monitoring-common-values
+      valuesKey: feature-application-observability.yaml
+    - kind: ConfigMap
+      name: grafana-k8s-monitoring-custom-values
+      valuesKey: values-custom.yaml
+    - kind: ConfigMap
+      name: grafana-k8s-monitoring-custom-values
+      valuesKey: values-alloy-logs-extra-config.yaml
+  test:
+    enable: false
