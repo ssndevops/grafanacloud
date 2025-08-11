@@ -1,0 +1,217 @@
+selfReporting:
+  enabled: false
+
+# This destinations block is required to pass the chart's internal validation,
+# but it is not correctly generating the final configuration.
+# We will still set the correct tenant ID here for consistency.
+destinations:
+  - name: grafana-logs
+    type: loki
+    url: http://loki-dev-gateway.observability.svc.cluster.local/loki/api/v1/push
+    auth:
+      type: basic
+      username: "lokiadmin"
+      password: "lokiadmin"
+    headers:
+      X-Scope-OrgID: "obs-logs" # Must match Loki's default_tenant_id
+    extraLabels:
+      platform: "bakery-ecp"
+      deployment_environment: "cn3-dev"
+
+prometheusOperatorObjects:
+  enabled: false
+  probes:
+    enabled: false
+  serviceMonitors:
+    enabled: true
+
+clusterEvents:
+  enabled: false
+
+nodeLogs:
+  enabled: false
+  journal:
+    units:
+      - kubelet.service
+      - containerd.service
+
+integrations: {}
+
+alloy-metrics:
+  enabled: false
+  logging:
+    level: warn
+    format: logfmt
+  configReloader:
+    enabled: false
+  controller:
+    extraAnnotations: { "reloader.stakater.com/auto": "true" }
+    podLabels: { "app": grafana-k8s-monitoring-alloy-metrics-statefulset }
+    enableStatefulSetAutoDeletePVC: true
+    volumeClaimTemplates:
+      - metadata:
+          name: alloy-wal
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          storageClassName: "managed-csi"
+          resources:
+            requests:
+              storage: 5Gi
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 0
+      targetMemoryUtilizationPercentage: 80
+
+  alloy:
+    storagePath: /var/lib/alloy
+    mounts:
+      extra:
+        - name: alloy-wal
+          mountPath: /var/lib/alloy
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "500m"
+      limits:
+        memory: "4Gi"
+        cpu: "1000m"
+
+alloy-singleton:
+  enabled: false
+  logging:
+    level: warn
+    format: logfmt
+  configReloader:
+    enabled: false
+  controller:
+    extraAnnotations: { "reloader.stakater.com/auto": "true" }
+    podLabels: { "app": grafana-k8s-monitoring-alloy-singleton-statefulset }
+  alloy:
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "200m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+alloy-logs:
+  enabled: true
+  logging:
+    level: warn
+    format: logfmt
+  configReloader:
+    enabled: false
+  controller:
+    extraAnnotations: { "reloader.stakater.com/auto": "true" }
+    podLabels: { "app": grafana-k8s-monitoring-alloy-logs-daemonset }
+    volumes:
+      extra:
+        - name: alloy-log-positions
+          hostPath:
+            path: /var/alloy-log-storage
+            type: DirectoryOrCreate
+        - name: host-fs
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: DirectoryOrCreate
+    tolerations:
+      - operator: Exists
+    priorityClassName: high
+    extraEnv:
+      - name: LOKI_TENANT
+        value: obs-logs
+  alloy:
+    storagePath: /var/lib/alloy
+    mounts:
+      extra:
+        - name: alloy-log-positions
+          mountPath: /var/lib/alloy
+        - name: host-fs
+          mountPath: /hostfs/var/lib/kubelet/pods
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "500m"
+      limits:
+        memory: "512Mi"
+        cpu: "1000m"
+    # This block will be used to explicitly add the headers to the Alloy config.
+    extraConfig: |
+      loki.write "grafana_logs" {
+        endpoint {
+          url = "http://loki-dev-gateway.observability.svc.cluster.local/loki/api/v1/push"
+          headers = {
+             "X-Scope-OrgID" = "obs-logs"
+          }
+        }
+        external_labels = {
+          "cluster" = "ecp-cn3-dev",
+          "k8s_cluster_name" = "ecp-cn3-dev",
+          "deployment_environment" = "cn3-dev",
+          "platform" = "bakery-ecp",
+        }
+      }
+
+alloy-receiver:
+  enabled: false
+  logging:
+    level: warn
+    format: logfmt
+  configReloader:
+    enabled: false
+  alloy:
+    extraPorts:
+      - name: otlp-grpc
+        port: 4317
+        targetPort: 4317
+        protocol: TCP
+      - name: otlp-http
+        port: 4318
+        targetPort: 4318
+        protocol: TCP
+      - name: zipkin
+        port: 9411
+        targetPort: 9411
+        protocol: TCP
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+  controller:
+    extraAnnotations: { "reloader.stakater.com/auto": "true" }
+    podLabels: { "app": grafana-k8s-monitoring-alloy-receiver-daemonset }
+    tolerations:
+      - operator: Exists
+    priorityClassName: high
+
+alloy-profiles:
+  enabled: false
+
+annotationAutodiscovery:
+  enabled: false
+
+alloy-operator:
+  extraAnnotations: { "reloader.stakater.com/auto": "true" }
+  podAnnotations: { "observability.volvocars.com": "true" }
+  podLabels: { "app": grafana-k8s-monitoring-alloy-operator-deployment }
+  resources:
+    requests:
+      cpu: 10m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  tolerations:
+    - operator: Exists
+  replicaCount: 3
+  extraEnv:
+    - name: ENVIRONMENT
+      value: ${DEPLOYMENT_ENVIRONMENT}
+    - name: PLATFORM
+      value: bakery-ecp
