@@ -1,0 +1,67 @@
+applicationObservability:
+  enabled: false
+  receivers:
+    otlp:
+      grpc:
+        enabled: true
+        port: 4317
+      http:
+        enabled: true
+        port: 4318
+    zipkin:
+      enabled: true
+      port: 9411
+  connectors:
+    grafanaCloudMetrics:
+      enabled: true
+  processors:
+    k8sattributes:
+      labels:
+        - from: pod
+          key: "AppID"
+          tag_name: "AppID"
+        - from: pod
+          key: "volvocars.com/AppID"
+          tag_name: "AppID"
+        - from: pod
+          key: "owner"
+          tag_name: "owner"
+        - from: pod
+          key: "volvocars.com/owner"
+          tag_name: "owner"
+        - from: pod
+          key: "app"
+          tag_name: "app"
+
+  logs:
+    transforms:
+      resource:
+        - set(attributes["service.name"], resource.attributes["app"])
+        - set(attributes["deployment.environment"], "${ENV}")
+        - set(attributes["service.namespace"], attributes["k8s.namespace.name"])
+        - set(attributes["platform"], "bakery-ecp")
+        - set(attributes["AppID"], resource.attributes["AppID"])
+        - set(attributes["owner"], resource.attributes["owner"])
+
+      
+  traces:
+    transforms:
+      resource:
+        - set(attributes["service.name"], resource.attributes["app"])
+        - set(attributes["deployment.environment"], "${ENV}")
+        - set(attributes["AppID"], resource.attributes["AppID"])
+        - set(attributes["owner"], resource.attributes["owner"])
+        - set(attributes["service.namespace"], attributes["k8s.namespace.name"])
+        - set(attributes["trace_sampling_level"], "low") where attributes["trace_sampling_level"] == nil
+        - set(attributes["platform"], "bakery-ecp")
+
+  metrics:
+    transforms:
+      resource:        
+        - set(attributes["service.namespace"], attributes["k8s.namespace.name"])
+      datapoint:
+        - set(attributes["deployment.environment"], "${ENV}")
+        - set(attributes["platform"], "bakery-ecp")
+        - set(attributes["AppID"], resource.attributes["AppID"])
+        - set(attributes["owner"], resource.attributes["owner"])
+        - set(attributes["service.name"], resource.attributes["app"])
