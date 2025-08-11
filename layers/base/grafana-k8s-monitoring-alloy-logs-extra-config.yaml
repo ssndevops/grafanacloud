@@ -1,0 +1,204 @@
+alloy-logs:
+  extraConfig: |
+    declare "audit_logs" {
+      argument "audit_logs_destinations" {
+        comment = "Must be a list of log destinations where collected logs should be forwarded to"
+      }
+
+      discovery.relabel "filtered_vault_pods" {
+        targets = discovery.kubernetes.vault_pods.targets
+
+        rule {
+          target_label = "AppID"
+          replacement  = "APP-6670"
+          action       = "replace"
+        }
+
+        rule {
+          target_label = "owner"
+          replacement  = "cld-csm-admins-sg"
+          action       = "replace"
+        }
+        
+        rule {
+          target_label = "job"
+          replacement  = "vault-enterprise/hcvault"
+          action       = "replace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          action = "replace"
+          target_label = "namespace"
+        }                
+
+        // make all labels on the pod available to the pipeline as labels,
+        // they are omitted before write to loki via stage.label_keep unless explicitly set
+        rule {
+          action = "labelmap"
+          regex = "__meta_kubernetes_pod_label_(.+)"
+        }
+
+        // make all annotations on the pod available to the pipeline as labels,
+        // they are omitted before write to loki via stage.label_keep unless explicitly set
+        rule {
+          action = "labelmap"
+          regex = "__meta_kubernetes_pod_annotation_(.+)"
+        }
+
+        rule {
+          action = "replace"
+          source_labels = [
+            "__meta_kubernetes_pod_label_app_kubernetes_io_name",
+            "__meta_kubernetes_pod_container_name",
+          ]
+          separator = ";"
+          regex = "^(?:;*)?([^;]+).*$"
+          replacement = "$1"
+          target_label = "service_name"
+        }
+      
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          regex = "(.+)"
+          target_label = "app_kubernetes_io_name"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          action        = "replace"
+          target_label  = "service_namespace"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          action        = "replace"
+          target_label  = "k8s_namespace_name"
+        }
+      
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          action        = "replace"
+          target_label  = "k8s_pod_name"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_ip"]
+          action        = "replace"
+          target_label  = "k8s_pod_ip"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          action        = "replace"
+          target_label  = "k8s_node_name"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          action        = "replace"
+          target_label  = "container_name"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_image"]
+          action        = "replace"
+          target_label  = "container_image_name"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_controller_kind"]
+          action        = "replace"
+          target_label  = "k8s_workload_kind"
+        }
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_controller_name"]
+          action        = "replace"
+          target_label  = "k8s_workload_name"
+        }
+      }
+
+      discovery.kubernetes "vault_pods" {
+        role = "pod"
+
+          namespaces {
+            names = ["vault-enterprise"]
+          }
+      }
+
+      discovery.relabel "vault_paths" {
+        targets = discovery.relabel.filtered_vault_pods.output
+
+        rule {
+          source_labels = ["__meta_kubernetes_pod_uid"]
+          target_label  = "__path__"
+          replacement   = "/hostfs/var/lib/kubelet/pods/$1/volumes/kubernetes.io~csi/**/mount/*audit*.log"
+        }
+      }
+
+      local.file_match "vault_audit" {
+        path_targets = discovery.relabel.vault_paths.output      
+      }
+
+      loki.source.file "vault_logs" {
+        targets    = local.file_match.vault_audit.targets
+        forward_to = [loki.process.vault_logs.receiver]
+      }
+
+      loki.process "vault_logs" {
+    
+        stage.label_drop {
+          values = [
+            "filename",
+            "tmp_container_runtime",
+          ]
+        }
+
+        stage.structured_metadata {
+          values = {
+            "app_kubernetes_io_component" = "app_kubernetes_io_component",
+            "app_kubernetes_io_part_of" = "app_kubernetes_io_part_of",
+            "app_kubernetes_io_version" = "app_kubernetes_io_version",
+            "container_id" = "container_id",
+            "container_image_id" = "container_image_id",
+            "container_image_name" = "container_image_name",
+            "container_name" = "container_name",
+            "instance" = "instance",
+            "k8s_cronjob_name" = "k8s_cronjob_name",
+            "k8s_cronjob_uid" = "k8s_cronjob_uid",
+            "k8s_daemonset_name" = "k8s_daemonset_name",
+            "k8s_daemonset_uid" = "k8s_daemonset_uid",
+            "k8s_deployment_uid" = "k8s_deployment_uid",
+            "k8s_job_name" = "k8s_job_name",
+            "k8s_job_uid" = "k8s_job_uid",
+            "k8s_namespace_name" = "k8s_namespace_name",
+            "k8s_namespace_uid" = "k8s_namespace_uid",
+            "k8s_node_name" = "k8s_node_name",
+            "k8s_node_uid" = "k8s_node_uid",
+            "k8s_pod_ip" = "k8s_pod_ip",
+            "k8s_pod_name" = "k8s_pod_name",
+            "k8s_pod_uid" = "k8s_pod_uid",
+            "k8s_replicaset_uid" = "k8s_replicaset_uid",
+            "k8s_statefulset_name" = "k8s_statefulset_name",
+            "k8s_statefulset_uid" = "k8s_statefulset_uid",
+            "k8s_workload_kind" = "k8s_workload_kind",
+            "k8s_workload_name" = "k8s_workload_name",
+            "namespace" = "namespace",
+            "platform" = "platform",
+            "pod" = "pod",
+          }
+        }
+
+        stage.label_keep {
+          values = ["app_kubernetes_io_name","app_kubernetes_io_instance","app_kubernetes_io_managed_by","service_name","service_namespace","deployment_environment","container","level","AppID","owner", "job"]
+        }
+
+        forward_to = argument.audit_logs_destinations.value
+      }
+    }
+
+    audit_logs "feature" {
+      audit_logs_destinations = [
+        loki.write.grafana_cloud_logs.receiver,
+      ]
+    }
