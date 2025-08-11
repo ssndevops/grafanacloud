@@ -1,0 +1,136 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: loki-dev
+  namespace: cluster-core
+spec:
+  interval: 5m
+  targetNamespace: observability
+  releaseName: loki-dev
+  chart:
+    spec:
+      chart: loki
+      version: 6.32.0
+      sourceRef:
+        kind: HelmRepository
+        name: grafana
+        namespace: cluster-core
+  install:
+    timeout: 10m0s
+    crds: Skip
+    remediation:
+      retries: -1
+  upgrade:
+    timeout: 10m0s
+    crds: Skip
+    remediation:
+      retries: -1
+  test:
+    enable: true
+  values:
+    loki:
+      useTestSchema: true
+      config: |                                 # ➡️ Use `|` to denote a multi-line string
+        auth_enabled: true
+        server:
+          default_tenant_id: "obs-logs"
+        schema_config:
+          configs:
+          - from: 2025-01-01
+            store: boltdb-shipper
+            object_store: azure
+            index:
+              prefix: index_
+              period: 24h
+            schema: v12
+        storage_config:
+          boltdb_shipper:
+            active_index_directory: /loki/index
+            cache_location: /loki/cache
+            cache_ttl: 24h
+          filesystem:
+            directory: /loki/chunks
+          azure:
+            account_name: ecpcn3devlokistorage
+        compactor:
+          working_directory: /loki/compactor
+          shared_store: azure
+    
+    deploymentMode: Distributed
+
+    ingester:
+      replicas: 3
+      zoneAwareReplication:
+        enabled: false
+
+    querier:
+      replicas: 3
+      maxUnavailable: 2
+
+    queryFrontend:
+      replicas: 2
+      maxUnavailable: 1
+
+    queryScheduler:
+      replicas: 2
+
+    distributor:
+      replicas: 3
+      maxUnavailable: 2
+
+    compactor:
+      replicas: 1
+
+    indexGateway:
+      replicas: 2
+      maxUnavailable: 1
+
+    bloomPlanner:
+      replicas: 0
+
+    bloomBuilder:
+      replicas: 0
+
+    bloomGateway:
+      replicas: 0
+
+    backend:
+      replicas: 0
+
+    read:
+      replicas: 0
+
+    write:
+      replicas: 0
+
+    singleBinary:
+      replicas: 0
+
+    gateway:
+      enabled: true
+      service:
+        type: ClusterIP
+      basicAuth:
+        enabled: true
+        existingSecret: loki-stack
+
+    minio:
+      enabled: true
+
+    chunksCache:
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+    resultsCache:
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
