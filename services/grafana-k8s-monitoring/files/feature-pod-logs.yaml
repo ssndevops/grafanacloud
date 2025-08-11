@@ -1,0 +1,46 @@
+podLogs:
+  enabled: true
+  labelsToKeep:
+    - app.kubernetes.io/name
+    - app.kubernetes.io/instance
+    - app.kubernetes.io/managed-by
+    - service.name
+    - service.namespace
+    - deployment.environment
+    - container
+    - level
+    - AppID
+    - owner
+  
+  structuredMetadata:
+    pod: pod 
+    k8s.pod.name: k8s.pod.name
+    k8s.pod.uid: k8s.pod.uid
+    k8s.pod.ip: k8s.pod.ip
+    k8s.node.name: k8s.node.name
+    k8s.node.uid: k8s.node.uid
+    k8s.namespace.name: k8s.namespace.name
+    k8s.namespace.uid: k8s.namespace.uid
+    k8s.deployment.uid: k8s.deployment.uid
+    k8s.replicaset.uid: k8s.replicaset.uid
+    k8s.daemonset.name: k8s.daemonset.name 
+    k8s.daemonset.uid: k8s.daemonset.uid
+    k8s.statefulset.name: k8s.statefulset.name
+    k8s.statefulset.uid: k8s.statefulset.uid
+    k8s.job.name: k8s.job.name
+    k8s.job.uid: k8s.job.uid
+    k8s.cronjob.name: k8s.cronjob.name
+    k8s.cronjob.uid: k8s.cronjob.uid
+    k8s.workload.kind: k8s.workload.kind
+    k8s.workload.name: k8s.workload.name
+    container.name: container.name
+    container.id: container.id
+    container.image.name: container.image.name
+    container.image.id: container.image.id
+    app.kubernetes.io/version: app.kubernetes.io/version
+    app.kubernetes.io/component: app.kubernetes.io/component
+    app.kubernetes.io/part-of: app.kubernetes.io/part-of
+    platform: platform
+    instance: instance
+    job: job
+    namespace: namespace
