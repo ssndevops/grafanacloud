@@ -1,0 +1,24 @@
+components:
+  - ../../../common/
+
+resources:
+  - ../../../services/elastic-operator
+  - ../../../services/fluent-operator
+  - ../../../services/otel-operator
+  - ../../../services/vault-config
+  - ./general
+  #- ./external
+  - ../../../services/elastic-license-monitor
+  - ../../../services/grafana
+  - ../../../services/loki-stack
+  - ../../../services/grafana-k8s-monitoring-china
+
+patches:
+  - target:
+      kind: HelmRelease
+      group: helm.toolkit.fluxcd.io
+      name: opentelemetry-operator
+    patch: |
+      - op: replace
+        path: /spec/chart/spec/version
+        value: "0.61.0"
